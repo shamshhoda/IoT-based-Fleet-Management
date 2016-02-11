@@ -5,7 +5,7 @@
 SoftwareSerial WiFi_Serial(3,4);
 #define SSID "******"
 #define PASS "**********"
-#define DST_IP "aws.axelta.com" //baidu.com
+#define DST_IP "aws.axelta.com" //using free cloud service; a platform called Osmosis
 LiquidCrystal lcd(8,9,10,11,12,13);
 int R=5;		// REED SWITCH 
 int P=6;		// POWER
