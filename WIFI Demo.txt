@@ -1,0 +1,222 @@
+#include<LiquidCrystal.h>
+#include <SoftwareSerial.h>
+SoftwareSerial WiFi_Serial(3,4);
+#define SSID "*****"
+#define PASS "********"
+#define DST_IP "aws.axelta.com" 
+LiquidCrystal lcd(8,9,10,11,12,13);
+int CNT = 5;
+String RES_input;
+String WIFI_input="";
+int i=1;
+int J=0;
+int Start_chck=0;
+void setup()
+{
+      Serial.begin(115200);
+      lcd.begin(16,2);
+      WiFi_Serial.begin(115200);
+      WiFi_Serial.println("AT+UART_DEF=9600,8,1,0,0");
+      delay(2000);
+      WiFi_Serial.begin(9600);
+      WiFi_Serial.println("ATE0");
+      delay(200);
+      WiFi_Serial.println("AT+CWQAP");
+}
+     
+void WIFI_Check()
+{
+      WiFi_Serial.println("AT");
+      delay(1500);
+      if(WiFi_Serial.available())
+      {
+      if(WiFi_Serial.find("OK"))
+      {
+      Serial.println("WIFI PLUGGED ON TO THE BOARD..!");
+      Serial.println();
+      Serial.println();
+      lcd.clear();
+      lcd.print("WIFI PLUGGED");
+      WiFi_Serial.println("AT+CWMODE=1");
+      delay(500);
+      Start_chck=1;
+      i=1;
+      }
+      }
+      else
+      {
+      lcd.clear();
+      lcd.print("WIFI NOT PLUGGED");
+      Serial.println("WIFI NOT PLUGGED..!");
+      Serial.println();
+      Serial.println("PLUG IN YOUR WIFI CHIP");  
+      Serial.println();
+      Serial.println();
+      }
+}
+void connectWiFi()
+      {
+      WiFi_Serial.println("AT+CWJAP?");
+      delay(5000);
+      if(WiFi_Serial.available())
+      {
+      if(WiFi_Serial.find("No AP"))
+      {
+      Serial.println("NOT CONNECTED TO WIFI NETWORK");
+      Serial.println();
+      Serial.println();
+      Serial.println("Trying to Connect to WiFi Network");
+      String cmd = "AT+CWJAP=\"";
+      cmd += SSID;
+      cmd += "\",\"";
+      cmd += PASS;
+      cmd += "\"";
+      WiFi_Serial.println(cmd);
+      Serial.println(cmd);
+      delay(6000);
+      if(WiFi_Serial.available())
+      {
+      String RES_input="";
+      while(WiFi_Serial.available()) // read the data into a variable as long as the 
+      {
+      RES_input+= (char)WiFi_Serial.read();
+      }
+      Serial.println(RES_input);
+      if(WiFi_Serial.find("WIFI CONNECTED"))
+      {
+      Serial.println("CONNECTED TO WIFI NETWORK..!");
+      lcd.clear();
+      lcd.print("CONNECTED TO NET");
+      }
+      }
+      }
+      else
+      {
+      lcd.clear();
+      lcd.print("CONNECTED TO");
+      lcd.setCursor(0,1);
+      lcd.print("WIFI NETWORK..!!");  
+      Serial.println("CONNECTED TO WIFI NETWORK..!");
+      Serial.println();
+      Serial.println();
+      post();
+      i=0;
+      }
+      }
+}
+void post()
+{
+      String data;
+      data += "{\"device_no\":\"ENVS\",\"client\":\"Environment setup\",\"device_type\":\"Cold Chain\",\"device_key\":\"KSUCQHLYMNTEPWLW4XVC\",\"node_no\":\"002\",\"Temp\":\"";
+      data += String("65");
+      data += "\"}";    
+      delay(100);
+      String uri="/services/data";
+      String port="80";
+      String http_req= "POST " + uri + " HTTP/1.1\r\n"+ "Host: " + DST_IP + ":" + port + "\r\n" + "Accept: *" + "/" + "*\r\n" + "Content-Length: " + data.length() + "\r\n" ;
+      String http_req1= "Content-Type: application/json\r\n\r\n" ;
+      Serial.println(data);
+      int x=(http_req.length());
+      int y=(http_req1.length());
+      int z=data.length();
+      int Total_req_data_Length = (x+y+z);
+      Serial.println();
+      String cmd = "AT+CIPSTART=\"TCP\",\"";
+      cmd += DST_IP;
+      cmd += "\",80";
+      lcd.clear();
+      lcd.print("CONNECTING CLOUD");
+      Serial.println(cmd);
+      WiFi_Serial.println(cmd);
+      delay(5000);
+      if(WiFi_Serial.available())
+      {
+      String RES_input="";
+      while(WiFi_Serial.available()) // read the data into a variable as long as the 
+      {
+      RES_input+= (char)WiFi_Serial.read();
+      }
+      Serial.println(RES_input);
+      if(WiFi_Serial.find("CONNECT"));
+      Serial.print("AT+CIPSEND=");
+      WiFi_Serial.print("AT+CIPSEND=");
+      WiFi_Serial.println(Total_req_data_Length);
+      delay(100);
+      if(WiFi_Serial.available());
+      RES_input="";
+      while(WiFi_Serial.available()) // read the data into a variable as long as the 
+      {
+      RES_input+= (char)WiFi_Serial.read();
+      }
+      Serial.println(RES_input);
+      {
+      if(WiFi_Serial.find(">"));
+      {
+      WiFi_Serial.print(http_req);
+      WiFi_Serial.print(http_req1);
+      WiFi_Serial.print(data);
+      delay(2000);
+      }
+      }
+      if(WiFi_Serial.available())
+      {
+        delay(100);
+      String RES_input="";
+      while(WiFi_Serial.available()) // read the data into a variable as long as the 
+      {
+      RES_input+= (char)WiFi_Serial.read();
+      }
+      lcd.clear();
+      Serial.println(RES_input);
+      if(WiFi_Serial.find("200"));
+      {
+      lcd.clear();
+      lcd.print("RESPONSE: 200");
+      lcd.setCursor(0,1);
+      lcd.print("Board Working Fine");
+      Serial.println("Board Working Fine");
+      delay(1000);
+      }
+      }
+      }
+      else
+      {
+      lcd.clear();
+      lcd.print("Error in Posting");
+      delay(1000);
+      }  
+}
+void loop()
+    {
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Axetla Systems");
+      delay(1000);
+      lcd.clear();
+      while(1)
+      {        
+      if(CNT<1)   //CNT for Time Delay
+      {
+      if(Start_chck==0)
+      {
+      WIFI_Check();
+      if(i==1)
+      {
+      connectWiFi();
+      }
+      }
+      else
+      {
+      CNT=4;
+      J=0;
+      Start_chck=0;
+      }
+      }
+      J++;
+      lcd.print(J);
+      Serial.println(J);
+      delay(2000);
+      Serial.println();
+      CNT--;
+      }
+    }

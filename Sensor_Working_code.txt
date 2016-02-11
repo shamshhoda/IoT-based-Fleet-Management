@@ -1,0 +1,44 @@
+#include<LiquidCrystal.h>
+LiquidCrystal lcd(8,9,10,11,12,13);
+int P=6;	//POWER SWITCH
+int T= A2; 	// A2 has already been defined as Analog Pin 2 in arduino lib
+void setup()
+{
+    lcd.begin(16,2);
+    pinMode(P, INPUT);
+}
+
+
+/*********** Analog Read function*********/
+void Temperature()
+{  	int value_temp = analogRead(T);   // reading from A2 pin
+  	float millivolts_temp = ((value_temp/1023.0)*5000);
+  	float CELCIUS = millivolts_temp/10;
+  	lcd.setCursor(0,1); 
+  	lcd.print("T:"); 
+  	lcd.print(CELCIUS);
+}
+
+/*********** Digital Read function*********/
+void POWER()
+{
+  	if(digitalRead(P)==LOW)
+  	{
+    		lcd.setCursor(0,0);
+    		lcd.print("P:");
+		lcd.print("OFF");
+  	}
+  	else
+  	{
+    		lcd.setCursor(0,0);
+    		lcd.print("P:");
+    		lcd.print("ON ");
+  	}
+}
+/*********** Main function*********/
+void loop()
+{
+   	Temperature ();
+  	POWER();
+  	delay(2000);
+} 
