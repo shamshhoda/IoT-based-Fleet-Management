@@ -83,7 +83,7 @@ void gsm_sms_read()
       digitalWrite(LED,HIGH);
       delay(10000);
       lcd.clear();
-      lcd.print("waiting for SMS");
+      lcd.print("Waiting for SMS");
       lcd.setCursor(0,1);
       lcd.print("LED OFF");
       digitalWrite(LED,LOW);
@@ -99,11 +99,11 @@ void loop()
 {
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.print("Axetla Systems");
+  lcd.print("Welcome!");
   gsminit();
   GSM_Serial.println("AT+CMGD=1,4");
   lcd.clear();
-  lcd.print("waiting for SMS");
+  lcd.print("Waiting For SMS");
   lcd.setCursor(0,1);
   lcd.print("ALARM OFF");
   while(1)

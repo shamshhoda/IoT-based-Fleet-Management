@@ -1,0 +1,413 @@
+#include <dht11.h>
+#include<LiquidCrystal.h>
+#include <SoftwareSerial.h>
+SoftwareSerial GSM_Serial(3,4);
+LiquidCrystal lcd(8,9,10,11,12,13);
+int R=5;		// REED SWITCH 
+int P=6;		// POWER
+int X=7;		// PIR
+int T=A2; 		// TEMPERATURE - A2 has already been defined as Analog Pin 2 in 
+int H=A5;		//HUMIDITY
+int L=A4;		//LIGHT
+int CNT=10;
+String gsm_input="";
+String RES_input="";
+float CELSIUS, HUM, LIGHT;
+dht11 DHT11;
+int i=1;
+int Start_chck=0;
+
+void setup()
+    {
+      Serial.begin(9600);
+      GSM_Serial.begin(9600);
+      lcd.begin(16,2);
+      pinMode(P, INPUT);
+      pinMode(R, INPUT);
+      pinMode(X, INPUT);
+    }
+// A Function to locate a given search string in a given base string
+boolean find_string(String base, String search)
+{
+     int len = search.length(); // find the length of the base string
+     for(int m = 0; m<((base.length()-len)+1);m++)// Iterate from the beginning of the base string till the end minus length of the substring
+     {
+     if(base.substring(m,(m+len))==search) // Check if the extracted Substring Matches the Search String
+     {
+     return true; // if it matches exit the function with a true value
+     }
+     }
+     return false; // if the above loop did not find any matches, control would come here and return a false value
+}
+
+    // A Function to locate a given search character in a given base string and return its position
+boolean find_char_loc(String base, char search)
+{
+      for(int m = 0; m < base.length();m++)// Iterate from the beginning of the base string till the end minus length of the substring
+      {
+        if(base[m]==search) // Check if the character Matches the Search character
+        {
+          return m; // if it matches exit the function with the current location value
+        }
+      }
+}
+//////////***GSM INITILALIZATION***/////////// 
+void gsminit()		
+{
+       GSM_Serial.println("AT");
+       lcd.clear();
+       lcd.print("AT");
+       DisplayGSMResponse();
+       GSM_Serial.println("ATE0");
+       lcd.clear();
+       lcd.print("ATE0");
+       //delay(1000);
+       DisplayGSMResponse();
+       
+}
+//////////***GSM RESPONSE***///////////     
+void DisplayGSMResponse()
+{
+      if(GSM_Serial.available())
+      {
+      String gsm_input="";
+      while(GSM_Serial.available()) 
+      {
+      gsm_input+= (char)GSM_Serial.read();
+      }
+      gsm_input.trim();
+      lcd.setCursor(0,1);
+      lcd.print(gsm_input);
+      delay(1000);
+      Serial.println(gsm_input);
+      }
+}
+//////////***GSM CONNECTION CHECK***/////////// 
+void GSM_Check()
+{
+      GSM_Serial.println("AT");
+      if(GSM_Serial.available())
+      {
+      String gsm_input="";
+      while(GSM_Serial.available()) // read the data into a variable as long as the 
+      {
+      gsm_input+= (char)GSM_Serial.read();
+      }
+      if(find_string(gsm_input,"O"))
+      {
+      int loc = find_char_loc(gsm_input,'O');
+      String response = gsm_input.substring(loc);
+      Serial.println(response);
+      if(response="K")
+      {
+      lcd.clear();
+      lcd.print("GSM CONNECTED..!");
+      Serial.println("GSM CONNECTED..!");
+      Start_chck=1;
+      i=1;
+      }    
+      }
+      }
+     if(i==0)
+      {
+      lcd.clear();
+      lcd.print("GSM NOT");
+      lcd.setCursor(0,1);
+      lcd.print("CONNECTED..!!");  
+      Serial.println("GSM  NOT CONNECTED..!");
+      }
+}
+
+//////////***HTTP INITIALIZATION***/////////// 
+void httpinit()		
+    {
+      Serial.println("HTTP INITIALIZING");
+      GSM_Serial.println("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"");
+      lcd.clear();
+      lcd.print("AT+SAPBR=GPRS");
+      delay(2000);
+      DisplayGSMResponse();
+      GSM_Serial.println("AT+SAPBR=3,1,\"APN\",\"INTERNET\"");
+      lcd.clear();
+      lcd.print("AT+SAPBR=APN");
+      delay(2000);  
+      DisplayGSMResponse();
+      GSM_Serial.println("AT+SAPBR=1,1");
+      lcd.clear();
+      lcd.print("AT+SAPBR=1,1");
+      delay(8000);
+      DisplayGSMResponse();
+      GSM_Serial.println("AT+SAPBR=2,1");
+      lcd.clear();
+      lcd.print("AT+SAPBR=2,1");
+      delay(2000);
+      DisplayGSMResponse();
+      GSM_Serial.println("AT+HTTPINIT");
+      lcd.clear();
+      lcd.print("AT+HTTPINIT");
+      delay(2000);
+      DisplayGSMResponse();
+      GSM_Serial.println("AT+HTTPPARA=\"CID\",1");
+      lcd.clear();
+      lcd.print("AT+HTTPPARA");
+      delay(2000);
+      DisplayGSMResponse();
+      GSM_Serial.println("AT+HTTPPARA=\"URL\",\"http://aws.axelta.com/services/data\"");
+      lcd.clear();
+      lcd.print("AT+HTTPPARA=URL");
+      delay(2000);
+      DisplayGSMResponse();
+      GSM_Serial.println("AT+HTTPPARA=\"Content\",\"application/json\"");
+      lcd.clear();
+      lcd.print("AT+HTTPPARA=JSON");
+      delay(2000);
+      DisplayGSMResponse();
+    }
+//////////***POST THE DATA***///////////  
+void httppost()		
+    {
+      Serial.println("POSTING THE DATA");
+      String data;
+      delay(500);
+      data += "{\"device_no\":\"WKSP-01\",\"client\":\"Workshop\",\"device_type\":\"SAM\",\"device_key\":\"LUJPIOJV7L5NHCWQ1F4J\",\"node_no\":\"001\",\"Temp\":\"";
+      data += String(CELSIUS);
+      data += "\",\"HUM\":\"";
+      data += String(HUM);
+      data += "\",\"LDR\":\"";
+      data += String(LIGHT);
+      data += "\",\"POWER\":\"";
+      if(digitalRead(P)==LOW)
+      {
+      data += "ON.";
+      }
+      else
+      {
+      data += "OFF";        
+      }
+      data += "\",\"DOOR\":\"";
+      if(digitalRead(R)==LOW)
+      {
+      data += "OPEN.";                
+      }
+      else
+      {
+       data += "CLOSE";                        
+      }
+      data += "\",\"PIR\":\"";
+      if(digitalRead(R)==LOW)
+      {
+      data += "YES.";                
+      }
+      else
+      {
+       data += "NO";                        
+      }
+      data += "\"}";                              
+      Serial.println(data);
+      int size = data.length();
+      String initData = "AT+HTTPDATA=";
+      initData += String(size);
+      initData += ", 40000";
+      GSM_Serial.println(initData);
+      lcd.clear();
+      lcd.print("AT+HTTPDATA");
+      delay(500);
+      DisplayGSMResponse();
+      GSM_Serial.println(data);
+      lcd.clear();
+      lcd.print("Connecting to");
+      lcd.setCursor(0,1);
+      lcd.print("Server....!!!");
+      delay(2000);
+      GSM_Serial.println("AT+HTTPACTION=1");
+      delay(10000);
+      if(GSM_Serial.available())
+      {
+      String RES_input="";
+      while(GSM_Serial.available()) // read the data into a variable as long as the 
+      {
+      RES_input+= (char)GSM_Serial.read();
+      }
+      lcd.clear();
+      Serial.println(RES_input);
+      if(find_string(RES_input,","))
+      {
+      int loc = find_char_loc(RES_input,'1');
+      String no = RES_input.substring(loc+1);
+      String response=no.substring(1,4);   
+      Serial.println(response);
+      if(response=="200")
+      {
+      lcd.clear();
+      lcd.print("RESPONSE:");
+      lcd.setCursor(10,0);
+      lcd.print(response);
+      lcd.setCursor(0,1);
+      lcd.print("DATA POSTED");
+      delay(1000);
+      }
+      else
+      {
+      lcd.clear();
+      lcd.print("Error in Posting");
+      delay(1000);
+        }
+      }  
+     }
+   }
+//////////***GSM & HTTP TERMINATION***///////////    
+void gsmterm()		
+    {
+      GSM_Serial.println("AT+ HTTPTERM");
+      lcd.clear();
+      lcd.print("AT+HTTPTERM");
+      delay(1000);
+      DisplayGSMResponse();
+      GSM_Serial.println("AT+SAPBR=0,1");
+      lcd.clear();
+      lcd.print("AT+SAPBR=0,1");
+      delay(1000);
+      DisplayGSMResponse();
+    }
+//////////***TEMPERATURE***///////////     
+void TEMPERATURE()
+    {
+      Serial.print("Geeting Temp\t");    
+      lcd.clear();
+      int value_temp=analogRead(T);
+      delay(10);
+      value_temp=analogRead(T);
+      delay(10);
+      float millivolts_temp=(value_temp/1023.0)*5000;
+      CELSIUS=millivolts_temp/10;
+      lcd.setCursor(0,0);
+      lcd.print("T:");
+      lcd.print(CELSIUS);
+      Serial.print("T:\t");
+      Serial.print(CELSIUS); Serial.print("\t");
+    }
+//////////***HUMIDITY***///////////     
+void HUMIDITY()
+    {
+      Serial.print("Getting Hum "); 
+      int chk = DHT11.read(H);
+      HUM=DHT11.humidity;
+      lcd.setCursor(9,0);
+      lcd.print("H:");
+      lcd.print(HUM);
+      Serial.print("H: ");
+      Serial.print(HUM); Serial.print("\t");
+     }
+//////////***LIGHT***///////////      
+void LIG()
+    {
+      Serial.print("Getting Lig ");
+      int value_lig=analogRead(L);
+      delay(10);
+      value_lig=analogRead(L);
+      float millivolts_lig =(value_lig /1023.0)*5000;
+      LIGHT=millivolts_lig /10;
+      lcd.setCursor(0,1);
+      lcd.print("L:");
+      lcd.print(LIGHT);
+      Serial.print("L: ");
+      Serial.print(LIGHT);Serial.println("\t");
+      delay(2000);
+      lcd.clear();
+    }
+//////////***POWER***/////////// 
+void POWER()
+    {
+      Serial.print("PWR STATUS\t");
+      if(digitalRead(P)==LOW)
+     {
+      lcd.setCursor(0,0);
+      lcd.print("P:ON");
+      Serial.print("P:ON");Serial.print("\t");
+      }
+      else
+      {
+      lcd.setCursor(0,0);
+      lcd.print("P:OFF");
+      Serial.print("P:OFF");Serial.print("\t");
+      }
+    } 
+//////////***REED SWITCH***/////////// 
+void REED()
+    {
+      Serial.print("        REED STATUS ");
+      if(digitalRead(R)==LOW)
+      {
+      lcd.setCursor(6,0);
+      lcd.print("R:OPEN");
+      Serial.print("R:OPEN");Serial.print("\t");
+      }
+      else
+      {
+      lcd.setCursor(6,0);
+      lcd.print("R:CLOSE");
+      Serial.print("R:CLOSE");Serial.print("\t");
+      }
+   }
+//////////***PIR SENSOR***/////////// 
+void PIR()
+    {
+      Serial.print("PIR STATUS ");
+      if(digitalRead(X)==LOW)
+      {
+      lcd.setCursor(0,1);
+      lcd.print("X:YES");
+      Serial.print("X:YES");Serial.print("\t");
+      }
+      else
+      {
+      lcd.setCursor(0,1);
+      lcd.print("X:NO ");
+      Serial.print("X:NO");Serial.println("\t");
+      }
+      delay(2000);
+   }
+   
+//////////***MAIN LOOP***///////////   
+void loop()
+    {
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Axetla Systems");
+      delay(1000);
+      lcd.clear();
+      while(1)
+      {        
+      if(CNT<1)   //CNT for Time Delay
+      {
+      if(Start_chck==0)
+      {
+      GSM_Check();
+      i=0;
+      delay(2000);
+      }
+      else
+      {
+      gsminit();
+      delay(2000);
+      httpinit();
+      delay(2000);
+      httppost();
+      delay(2000);
+      gsmterm();
+      delay(2000);
+      CNT=10;
+      i=1;
+      Start_chck=0;
+      }
+      }
+      TEMPERATURE();
+      HUMIDITY();
+      LIG();
+      POWER();
+      REED();
+      PIR();
+      Serial.println();
+      CNT--;
+      }
+    }

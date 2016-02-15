@@ -1,0 +1,109 @@
+#include <dht11.h>
+#include<LiquidCrystal.h>
+LiquidCrystal lcd(8,9,10,11,12,13);
+int P=6;		//Powersensor - 6
+int R=5;		//Reed Switch - 5
+int X=7;		//PIR sensor - 7
+int T=A2; 		// TEMPERATURE - A2 has already been defined as Analog Pin 2 in arduino lib
+int H=A5;		//HUMIDITY
+int L=A4;		//LIGHT
+float CELSIUS, HUM, LIGHT;
+dht11 DHT11;
+void setup()
+    {
+
+      lcd.begin(16,2);
+      pinMode(P, INPUT);
+      pinMode(R, INPUT);
+      pinMode(X, INPUT);
+
+    }
+
+    void TEMPERATURE()
+    {
+      lcd.clear();
+      int value_temp=analogRead(T);
+      delay(10);
+      value_temp=analogRead(T);
+      float millivolts_temp=(value_temp/1023.0)*5000;
+      CELSIUS=millivolts_temp/10;
+      lcd.setCursor(0,0);
+      lcd.print("T:");
+      lcd.print(CELSIUS);
+    }
+    void HUMIDITY()
+    {
+      int chk = DHT11.read(H);
+      float HUM=DHT11.humidity;
+      lcd.setCursor(8,0);
+      lcd.print("H:");
+      lcd.print(HUM);
+    }
+    void LIG()
+    {
+      int value_lig=analogRead(L);
+      delay(10);
+      value_lig=analogRead(L);
+      float millivolts_lig =(value_lig /1023.0)*5000;
+      LIGHT=millivolts_lig /10;
+      lcd.setCursor(0,1);
+      lcd.print("L:");
+      lcd.print(LIGHT);
+      delay(2000); 
+      lcd.clear();
+    }
+void POWER()
+    {
+      if(digitalRead(P)==LOW)
+       {
+        lcd.setCursor(0,0);
+        lcd.print("P:OFF");
+      }
+      else{
+        lcd.setCursor(0,0);
+        lcd.print("P:ON ");
+      }
+    } 
+    void PIR()
+    {
+      if(digitalRead(X)==LOW)
+       {
+        lcd.setCursor(0,1);
+        lcd.print("X:PIR(NO )");
+      }
+      else{
+        lcd.setCursor(0,1);
+        lcd.print("X:PIR(YES)");
+      }
+    } 
+void REED()
+    {
+      if(digitalRead(R)==LOW)
+           {
+        lcd.setCursor(6,0);
+        lcd.print("R:OPEN");
+      }
+      else
+      {
+        lcd.setCursor(6,0);
+        lcd.print("R:CLOSE");
+      }
+       delay(2000);
+    }
+    void loop()
+    {
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Axetla Systems");
+      delay(1000);
+      lcd.clear();
+      while(1)
+      {
+        TEMPERATURE();
+        HUMIDITY();
+        LIG();
+        POWER();
+        PIR();
+        REED();
+        }
+    }
